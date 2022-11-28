@@ -13,9 +13,11 @@
 #define WAIT_STARTING_POINT 500
 
 int AUX_WaitEventTimeoutCount(SDL_Event* evt, Uint32* ms) {
+    Uint32 t1 = SDL_GetTicks();
     int is_event = SDL_WaitEventTimeout(evt, *ms);
-    if (is_event && *ms != WAIT_STARTING_POINT) {
-        *ms -= (SDL_GetTicks() - *ms);
+    if (is_event) {
+        Uint32 tf = SDL_GetTicks();
+        *ms -= (tf - t1);
         if(*ms < 0) {
             *ms = 0;
         }
