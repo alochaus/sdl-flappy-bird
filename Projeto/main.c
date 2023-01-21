@@ -69,13 +69,11 @@ int main(void)
     int gravity = -GRAVITY;
     int critical_point_y = WINDOW_HEIGHT;
     State current_state = in_menu;
-    // State current_state = in_game;
     Uint32 wait = WAIT_STARTING_POINT;
 
     LinkedList *pipes = LinkedList_init();
     SDL_Rect top_pipe_frame = {0, 13, 26, 160};
     SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
-    // SDL_Rect city_frame = { 52, 0, 144, 39 };
 
     srand(time(NULL));
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
@@ -182,27 +180,6 @@ int main(void)
                 draw_game(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, &current_state);
                 break;
         }
-
-        // SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
-        // SDL_RenderClear(ren);
-
-        // draw_city_and_grass(ren, sprites);
-
-        // draw_pipes_2(ren, pipes, sprites);
-
-        // SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
-        // SDL_RenderDrawLine(ren, 0, critical_point_y, WINDOW_WIDTH, critical_point_y);
-
-        // // DRAW BIRD
-        // SDL_RenderCopy(ren, sprites, &bird_frame, &bird_rect);
-
-        // update_score(&score, pipes, &bird_rect);
-
-        // draw_score(ren, sprites, &score);
-
-        // bird_hit_the_wall = check_collision(bird_rect, pipes);
-        // if(bird_hit_the_wall)
-        //     break;
 
         SDL_RenderPresent(ren);
     }
@@ -360,25 +337,6 @@ void draw_city_and_grass(SDL_Renderer *ren, SDL_Texture *sprites)
         // dirt_rect.x += dirt_rect.w;
     } while (city_rect.x < WINDOW_WIDTH);
 }
-
-// void draw_pipes(SDL_Renderer *ren, SDL_Texture *sprites)
-// {
-//     SDL_Rect top_pipe_frame = {0, 13, 26, 160};
-//     SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
-//     SDL_Rect pipe_rect = {200, -600, 26 * 5, (sprites_height - BIRD_HEIGHT) * 5};
-
-//     // SDL_RenderCopy(ren, sprites, &top_pipe_frame, &pipe_rect);
-
-//     srand(time(NULL));
-//     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
-
-//     SDL_Rect top_pipe = {500, r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
-
-//     SDL_Rect bottom_pipe = {500, r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
-
-//     SDL_RenderCopy(ren, sprites, &bottom_pipe_frame, &bottom_pipe);
-//     SDL_RenderCopy(ren, sprites, &top_pipe_frame, &top_pipe);
-// }
 
 void draw_pipes(SDL_Renderer *ren, LinkedList *pipes, SDL_Texture *sprites)
 {
