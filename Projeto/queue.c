@@ -3,6 +3,7 @@
 
 typedef struct {
     SDL_Rect data;
+    int counted;
 
     struct LinkedListNode* next;
 } LinkedListNode;
@@ -17,6 +18,7 @@ typedef struct {
 LinkedListNode* LinkedListNode_init() {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     node->next = NULL;
+    node->counted = 0;
 
     node->data.x = 0;
     node->data.y = 0;

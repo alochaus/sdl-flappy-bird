@@ -1,20 +1,20 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<SDL2/SDL.h>
-#include<SDL2/SDL_image.h>
-#include<time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <time.h>
+#include <stdlib.h>
 
-#include"queue.c"
-
+#include "queue.c"
 #define TRUE 1
 #define FALSE 0
 
-#define WINDOW_TITLE  "FlappyBird"
-#define WINDOW_WIDTH  720
+#define WINDOW_TITLE "FlappyBird"
+#define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
-#define WINDOW_POS_X  SDL_WINDOWPOS_UNDEFINED
-#define WINDOW_POS_Y  SDL_WINDOWPOS_UNDEFINED
-#define WAIT_STARTING_POINT 25
+#define WINDOW_POS_X SDL_WINDOWPOS_UNDEFINED
+#define WINDOW_POS_Y SDL_WINDOWPOS_UNDEFINED
+#define WAIT_STARTING_POINT 30
 #define PIPE_GAP 100
 #define PIPE_SIZE 5
 
@@ -25,100 +25,189 @@
 #define BIRD_BOUNDS_1 51
 #define BIRD_POSITION_X 0
 #define BIRD_POSITION_Y 0
+#define GRAVITY 8
 
 #define GRASS_COLOR "17a119"
-#define SKY_COLOR   "138792"
+#define SKY_COLOR "138792"
 
 
+typedef enum {in_menu, in_game, in_grave} State; 
 int sprites_width, sprites_height;
 
-void SDL_init(void);
-SDL_Window* create_window(void);
-SDL_Renderer* create_renderer(SDL_Window* win);
-SDL_Texture* load_texture(char* image_path, SDL_Renderer* ren);
-int AUX_WaitEventTimeoutCount(SDL_Event* event, Uint32* wait, int frametime);
-void draw_city_and_grass(SDL_Renderer* ren, SDL_Texture* sprites);
-void draw_pipes(SDL_Renderer* ren, SDL_Texture* sprites);
 
-int main(void) {
+void SDL_init(void);
+SDL_Window *create_window(void);
+SDL_Renderer *create_renderer(SDL_Window *win);
+SDL_Texture *load_texture(char *image_path, SDL_Renderer *ren);
+int AUX_WaitEventTimeoutCount(SDL_Event *event, Uint32 *wait, int frametime);
+void draw_city_and_grass(SDL_Renderer *ren, SDL_Texture *sprites);
+void draw_pipes(SDL_Renderer *ren, LinkedList* pipes, SDL_Texture *sprites);
+void draw_score(SDL_Renderer *ren, SDL_Texture *sprites, int *score);
+int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State *current_state, SDL_Rect *play_button_rect, SDL_Rect *logo_rect, SDL_Rect *logo_frame, SDL_Rect *play_button_frame);
+void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect);
+
+
+int main(void)
+{
     SDL_init();
 
-    SDL_Window* win = create_window();
-    SDL_Renderer* ren = create_renderer(win);
+    SDL_Window *win = create_window();
+    SDL_Renderer *ren = create_renderer(win);
     SDL_Event event;
 
-    SDL_Texture* sprites = load_texture("assets/a.png", ren);
+    SDL_Texture *sprites = load_texture("assets/textures.png", ren);
 
     SDL_QueryTexture(sprites, NULL, NULL, &sprites_width, &sprites_height);
 
-    SDL_Rect bird_rect  = { WINDOW_WIDTH/5 - 85, 0, 85, 60 };
-    SDL_Rect bird_frame = { 0, 0, BIRD_WIDTH, BIRD_HEIGHT };
+    SDL_Rect bird_rect = {WINDOW_WIDTH / 5 - 85, 0, 85, 60};
+    SDL_Rect bird_frame = {0, 0, BIRD_WIDTH, BIRD_HEIGHT};
 
     int quit = FALSE;
+    int score = 98;
     int bird_hit_the_wall = FALSE;
     int frametime = 0;
+    int gravity = -GRAVITY;
+    int critical_point_y = WINDOW_HEIGHT;
+    State current_state = in_menu;
+    // State current_state = in_game;
     Uint32 wait = WAIT_STARTING_POINT;
 
-    LinkedList* pipes = LinkedList_init();
-    SDL_Rect top_pipe_frame = { 0, 13, 26, 160 };
-    SDL_Rect bottom_pipe_frame = { 26, 13, 26, 160 };
+    LinkedList *pipes = LinkedList_init();
+    SDL_Rect top_pipe_frame = {0, 13, 26, 160};
+    SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
+    // SDL_Rect city_frame = { 52, 0, 144, 39 };
 
-    srand(time(NULL));    
+    srand(time(NULL));
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
-    
-    SDL_Rect top_pipe = { WINDOW_WIDTH, r - PIPE_GAP - (PIPE_SIZE*(sprites_height-BIRD_HEIGHT)), PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
 
-    SDL_Rect bottom_pipe = { WINDOW_WIDTH, r + PIPE_GAP, PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
+    SDL_Rect top_pipe = {WINDOW_WIDTH, r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
+    SDL_Rect bottom_pipe = {WINDOW_WIDTH, r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
+    SDL_Rect top_pipe_2 = {WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13), r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
+    SDL_Rect bottom_pipe_2 = {WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13), r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
 
-    SDL_Rect top_pipe_2 = { WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13), r - PIPE_GAP - (PIPE_SIZE*(sprites_height-BIRD_HEIGHT)), PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
+    SDL_Rect logo_frame = {52, 57, 89, 23};
 
-    SDL_Rect bottom_pipe_2 = { WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13), r + PIPE_GAP, PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
+    int logo_frame_mul = 4;
+    int logo_rect_w = logo_frame.w * logo_frame_mul;
+    int logo_rect_h = logo_frame.h * logo_frame_mul;
 
-    LinkedList_insert(top_pipe, pipes); 
+    SDL_Rect logo_rect = {(WINDOW_WIDTH / 2) - (logo_rect_w / 2), 0, logo_rect_w, logo_rect_h};
+
+    SDL_Rect play_button_frame = {52, 92, 52, 29};
+
+    int play_button_frame_mul = 2;
+    int play_button_rect_w = play_button_frame.w * play_button_frame_mul;
+    int play_button_rect_h = play_button_frame.h * play_button_frame_mul;
+    int gap_between_logo_and_play = logo_rect_h + 100;
+    SDL_Rect play_button_rect = {(WINDOW_WIDTH / 2) - (play_button_rect_w / 2), gap_between_logo_and_play, play_button_rect_w, play_button_rect_h};
+
+    int height = play_button_rect.h + play_button_rect.y;
+    logo_rect.y += (WINDOW_HEIGHT / 2) - (height / 2);
+    play_button_rect.y = (WINDOW_HEIGHT / 2) - (height / 2) + gap_between_logo_and_play;
+
+    LinkedList_insert(top_pipe, pipes);
     LinkedList_insert(bottom_pipe, pipes);
-    LinkedList_insert(top_pipe_2, pipes); 
+    LinkedList_insert(top_pipe_2, pipes);
     LinkedList_insert(bottom_pipe_2, pipes);
 
-    while (!quit) {
-        if(AUX_WaitEventTimeoutCount(&event, &wait, frametime)) {
-            switch (event.key.keysym.sym) {
-                case SDLK_ESCAPE:
-                    quit = TRUE;
-                    break;
+    while (!quit)
+    {
+        if (AUX_WaitEventTimeoutCount(&event, &wait, frametime))
+        {
+            switch (event.key.keysym.sym)
+            {
+            case SDLK_ESCAPE:
+                quit = TRUE;
+                break;
             }
-        } else {
+            switch (event.type)
+            {
+            case SDL_MOUSEBUTTONUP:
+                switch (current_state)
+                {
+                    case in_game:
+                        if (gravity > 0)
+                            gravity *= -1;
+                        critical_point_y = bird_rect.y - 70;
+                        break;
+                    case in_menu:
+                        int mouse_x, mouse_y;
+                        SDL_GetMouseState(&mouse_x, &mouse_y);
+                        SDL_Point position = {mouse_x, mouse_y};
+
+                        if(SDL_PointInRect(&position, &play_button_rect)) {
+                            current_state = in_game;
+                            bird_rect.x = (WINDOW_WIDTH/8);
+                            bird_rect.y = (WINDOW_HEIGHT/2) - (bird_rect.h/2);
+                        }
+                        break;
+                }
+                break;
+            }
+        }
+        else
+        {
             wait = WAIT_STARTING_POINT;
+            switch(current_state) {
+            case in_game:
+                move_em_all_to_the_left(pipes);
+                generate_new_pipes(pipes);
 
-            move_em_all_to_the_left(pipes);
-            generate_new_pipes(pipes);
+                frametime++;
+                if (frametime == 5)
+                {
+                    frametime = 0;
+                    bird_frame.x += BIRD_WIDTH;
+                    if (bird_frame.x >= BIRD_ENDING_POINT)
+                        bird_frame.x = BIRD_STARTING_POINT;
+                }
 
-            frametime++;
-            if(frametime == 5) {
-                frametime = 0;
-                bird_frame.x += BIRD_WIDTH;
-                if(bird_frame.x >= BIRD_ENDING_POINT)
-                    bird_frame.x = BIRD_STARTING_POINT;
+                if (critical_point_y >= bird_rect.y)
+                {
+                    gravity *= -1;
+                    critical_point_y = -100;
+                }
+
+                bird_rect.y += gravity;
             }
 
         }
 
-        SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(ren);
+        printf("current_state: %d\n", current_state);
+        switch(current_state) {
+            case in_menu:
+                draw_menu(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, &current_state, &play_button_rect, &logo_rect, &logo_frame, &play_button_frame);
+                break;
+            case in_game:
+                draw_game(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, &current_state);
+                break;
+        }
 
-        draw_city_and_grass(ren, sprites);
+        // SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
+        // SDL_RenderClear(ren);
 
-        draw_pipes_2(ren, pipes, sprites);
+        // draw_city_and_grass(ren, sprites);
 
-        // DRAW BIRD
-        SDL_RenderCopy(ren, sprites, &bird_frame, &bird_rect);
+        // draw_pipes_2(ren, pipes, sprites);
 
-        bird_hit_the_wall = check_collision(bird_rect, pipes);
-        if(bird_hit_the_wall)
-            break;
+        // SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+        // SDL_RenderDrawLine(ren, 0, critical_point_y, WINDOW_WIDTH, critical_point_y);
+
+        // // DRAW BIRD
+        // SDL_RenderCopy(ren, sprites, &bird_frame, &bird_rect);
+
+        // update_score(&score, pipes, &bird_rect);
+
+        // draw_score(ren, sprites, &score);
+
+        // bird_hit_the_wall = check_collision(bird_rect, pipes);
+        // if(bird_hit_the_wall)
+        //     break;
 
         SDL_RenderPresent(ren);
     }
-    
+
+    printf("Score: %d\n", score);
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
     SDL_Quit();
@@ -126,31 +215,38 @@ int main(void) {
     return 0;
 }
 
-void SDL_init(void) {
-    if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
-        printf("Erro de inicialização do SDL.\nSDL_Error: %s\n", SDL_GetError() );
+void SDL_init(void)
+{
+    if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
+    {
+        printf("Erro de inicialização do SDL.\nSDL_Error: %s\n", SDL_GetError());
         return;
     }
 
-    if(!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
+    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
+    {
         printf("Erro de incialização do SDL_image.\nSDL_Error: %s\n", SDL_GetError());
     }
 }
 
-SDL_Window* create_window(void) {
-    SDL_Window* win = SDL_CreateWindow(WINDOW_TITLE, WINDOW_POS_X, WINDOW_POS_Y, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+SDL_Window *create_window(void)
+{
+    SDL_Window *win = SDL_CreateWindow(WINDOW_TITLE, WINDOW_POS_X, WINDOW_POS_Y, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
 
-    if(win==NULL) {
+    if (win == NULL)
+    {
         printf("Janela não pôde ser criada.\nSDL_Error: %s\n", SDL_GetError());
     }
 
     return win;
 }
 
-SDL_Renderer* create_renderer(SDL_Window* win) {
-    SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED); 
+SDL_Renderer *create_renderer(SDL_Window *win)
+{
+    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
 
-    if(win==NULL) {
+    if (win == NULL)
+    {
         printf("Janela não pôde ser criada.\nSDL_Error: %s\n", SDL_GetError());
     }
 
@@ -159,17 +255,20 @@ SDL_Renderer* create_renderer(SDL_Window* win) {
     return ren;
 }
 
-SDL_Texture* load_texture(char* image_path, SDL_Renderer* ren) {
+SDL_Texture *load_texture(char *image_path, SDL_Renderer *ren)
+{
     SDL_Texture *texture = NULL;
     SDL_Surface *surface = IMG_Load(image_path);
 
-    if(!surface) {
+    if (!surface)
+    {
         printf("Erro ao carregar a imagem.\nSDL_Error: %s\n", SDL_GetError());
         return NULL;
     }
 
     texture = SDL_CreateTextureFromSurface(ren, surface);
-    if(!texture) {
+    if (!texture)
+    {
         printf("Erro ao criar textura a partir da superfície.\nSDL_Error: %s\n", SDL_GetError());
         return NULL;
     }
@@ -179,73 +278,124 @@ SDL_Texture* load_texture(char* image_path, SDL_Renderer* ren) {
     return texture;
 }
 
-int AUX_WaitEventTimeoutCount(SDL_Event* event, Uint32* wait, int frametime) {
+int AUX_WaitEventTimeoutCount(SDL_Event *event, Uint32 *wait, int frametime)
+{
     Uint32 before = SDL_GetTicks();
-    int is_event = SDL_WaitEventTimeout(event, *wait);
-    if (is_event) {
+    int isEvent = SDL_WaitEventTimeout(event, *wait);
+    if (isEvent)
+    {
         *wait -= (SDL_GetTicks() - before);
 
-        if (*wait >= WAIT_STARTING_POINT) {
+        if (*wait >= WAIT_STARTING_POINT)
             *wait = 0;
-        }
-    } else {
+    }
+    else
         *wait = WAIT_STARTING_POINT;
-        printf("frametime: %d\n", frametime);
+
+    return isEvent;
+}
+
+void draw_score(SDL_Renderer *ren, SDL_Texture *sprites, int *score)
+{
+    SDL_Rect num_1_frame = {52 + (14 * (*score % 10)), 39, 12, 18};
+    SDL_Rect num_2_frame = {52 + (14 * (((*score % 100) - (*score % 10)) / 10)), 39, 12, 18};
+    SDL_Rect num_3_frame = {52 + (14 * (((*score % 1000) - (*score % 100))) / 100), 39, 12, 18};
+
+    int size_multiplier = 4;
+    int number_width = 12;
+    int half_window_width = WINDOW_WIDTH / 2;
+    int half_number_width = number_width * size_multiplier / 2;
+    SDL_Rect num_1_rect = {half_window_width - half_number_width, 10, number_width * size_multiplier, 18 * size_multiplier};
+    SDL_Rect num_2_rect = num_1_rect;
+    SDL_Rect num_3_rect = num_1_rect;
+
+    int display2 = FALSE;
+    int display3 = FALSE;
+
+    if (*score > 9 && *score <= 99)
+    {
+        num_1_rect.x += half_number_width;
+        num_2_rect.x -= half_number_width - 1;
+        display2 = TRUE;
+    }
+    if (*score > 99 && *score <= 999)
+    {
+        num_1_rect.x += half_number_width * 2;
+        num_3_rect.x -= half_number_width * 2;
+        display2 = TRUE;
+        display3 = TRUE;
     }
 
-    return is_event;
+    SDL_RenderCopy(ren, sprites, &num_1_frame, &num_1_rect);
+    if (display2)
+        SDL_RenderCopy(ren, sprites, &num_2_frame, &num_2_rect);
+    if (display3)
+        SDL_RenderCopy(ren, sprites, &num_3_frame, &num_3_rect);
 }
 
-void draw_city_and_grass(SDL_Renderer* ren, SDL_Texture* sprites) {
-    SDL_Rect city_rect = { 0, (WINDOW_HEIGHT/5)*3, (144*(WINDOW_HEIGHT/5))/39, (WINDOW_HEIGHT/5)};        
-    SDL_Rect city_frame = { 52, 0, 144, 39 };
-    SDL_Rect grass_rect = { 0, (WINDOW_HEIGHT/5)*4, WINDOW_WIDTH, WINDOW_HEIGHT};
+void draw_city_and_grass(SDL_Renderer *ren, SDL_Texture *sprites)
+{
+    SDL_Rect city_rect = {0, (WINDOW_HEIGHT / 5) * 3, (144 * (WINDOW_HEIGHT / 5)) / 39, (WINDOW_HEIGHT / 5)};
+    SDL_Rect city_frame = {52, 0, 144, 39};
+    SDL_Rect leaves_rect = {0, (WINDOW_HEIGHT / 5) * 4, WINDOW_WIDTH, WINDOW_HEIGHT};
 
-    do {
-        // RENDER GRASS
+    // SDL_Rect grass_frame = {52, 80, 144, 12};
+    // SDL_Rect grass_rect = {0, (WINDOW_HEIGHT / 5) * 4, (144 * (WINDOW_HEIGHT / 5)) / 12, (WINDOW_HEIGHT / 5)};
+    // SDL_Rect dirt_rect = {0, (WINDOW_HEIGHT / 8) * 7, WINDOW_WIDTH, WINDOW_HEIGHT};
+
+    do
+    {
         SDL_SetRenderDrawColor(ren, 0x17, 0xA1, 0x19, SDL_ALPHA_OPAQUE);
-        SDL_RenderFillRect(ren, &grass_rect);
+        SDL_RenderFillRect(ren, &leaves_rect);
 
-        // RENDER CITY
+        // SDL_SetRenderDrawColor(ren, 0xDE, 0xD7, 0x98, SDL_ALPHA_OPAQUE);
+        // SDL_RenderFillRect(ren, &dirt_rect);
+
         SDL_RenderCopy(ren, sprites, &city_frame, &city_rect);
+        // SDL_RenderCopy(ren, sprites, &grass_frame, &grass_rect);
 
         city_rect.x += city_rect.w;
-        grass_rect.x += grass_rect.w;
-    } while(city_rect.x < WINDOW_WIDTH);
+        leaves_rect.x += leaves_rect.w;
+        // grass_rect.x += grass_rect.w;
+        // dirt_rect.x += dirt_rect.w;
+    } while (city_rect.x < WINDOW_WIDTH);
 }
 
-void draw_pipes(SDL_Renderer* ren, SDL_Texture* sprites) {
-    SDL_Rect top_pipe_frame = { 0, 13, 26, 160 };
-    SDL_Rect bottom_pipe_frame = { 26, 13, 26, 160 };
-    SDL_Rect pipe_rect = { 200, -600, 26*5, (sprites_height-BIRD_HEIGHT)*5 };
+// void draw_pipes(SDL_Renderer *ren, SDL_Texture *sprites)
+// {
+//     SDL_Rect top_pipe_frame = {0, 13, 26, 160};
+//     SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
+//     SDL_Rect pipe_rect = {200, -600, 26 * 5, (sprites_height - BIRD_HEIGHT) * 5};
 
-    // SDL_RenderCopy(ren, sprites, &top_pipe_frame, &pipe_rect);
+//     // SDL_RenderCopy(ren, sprites, &top_pipe_frame, &pipe_rect);
 
-    srand(time(NULL));    
-    int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
-    
-    SDL_Rect top_pipe = { 500, r - PIPE_GAP - (PIPE_SIZE*(sprites_height-BIRD_HEIGHT)), PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
+//     srand(time(NULL));
+//     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
 
-    SDL_Rect bottom_pipe = { 500, r + PIPE_GAP, PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
+//     SDL_Rect top_pipe = {500, r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
 
-    SDL_RenderCopy(ren, sprites, &bottom_pipe_frame, &bottom_pipe);
-    SDL_RenderCopy(ren, sprites, &top_pipe_frame, &top_pipe);
+//     SDL_Rect bottom_pipe = {500, r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
 
-}
+//     SDL_RenderCopy(ren, sprites, &bottom_pipe_frame, &bottom_pipe);
+//     SDL_RenderCopy(ren, sprites, &top_pipe_frame, &top_pipe);
+// }
 
-void draw_pipes_2(SDL_Renderer* ren, LinkedList* pipes, SDL_Texture* sprites) {
-    SDL_Rect top_pipe_frame = { 0, 13, 26, 160 };
-    SDL_Rect bottom_pipe_frame = { 26, 13, 26, 160 };
+void draw_pipes(SDL_Renderer *ren, LinkedList *pipes, SDL_Texture *sprites)
+{
+    SDL_Rect top_pipe_frame = {0, 13, 26, 160};
+    SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
 
-    LinkedListNode* head = pipes->head;
+    LinkedListNode *head = pipes->head;
 
-    if (head == NULL) {
+    if (head == NULL)
+    {
         return;
     }
 
     int i = 0;
-    while(head) {
-        if(i % 2 == 0)
+    while (head)
+    {
+        if (i % 2 == 0)
             SDL_RenderCopy(ren, sprites, &top_pipe_frame, &(head->data));
         else
             SDL_RenderCopy(ren, sprites, &bottom_pipe_frame, &(head->data));
@@ -255,44 +405,47 @@ void draw_pipes_2(SDL_Renderer* ren, LinkedList* pipes, SDL_Texture* sprites) {
     }
 }
 
-void generate_new_pipes(LinkedList* pipes) {
+void generate_new_pipes(LinkedList *pipes)
+{
     // DELETAR PIPES
-    LinkedListNode* pipe = LinkedList_search(pipes, 0);
+    LinkedListNode *pipe = LinkedList_search(pipes, 0);
 
-    if(pipe->data.x + pipe->data.w >= 0) 
+    if (pipe->data.x + pipe->data.w >= 0)
         return;
-    
+
     print(pipes);
     LinkedList_pop(pipes);
     LinkedList_pop(pipes);
 
-
     // GERAR PIPES
-    SDL_Rect top_pipe_frame = { 0, 13, 26, 160 };
-    SDL_Rect bottom_pipe_frame = { 26, 13, 26, 160 };
+    SDL_Rect top_pipe_frame = {0, 13, 26, 160};
+    SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
 
-    srand(SDL_GetTicks());    
+    srand(time(NULL));
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
-    
-    SDL_Rect top_pipe = { WINDOW_WIDTH, r - PIPE_GAP - (PIPE_SIZE*(sprites_height-BIRD_HEIGHT)), PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
 
-    SDL_Rect bottom_pipe = { WINDOW_WIDTH, r + PIPE_GAP, PIPE_SIZE*26, PIPE_SIZE*(sprites_height-BIRD_HEIGHT) };
+    SDL_Rect top_pipe = {WINDOW_WIDTH, r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
 
-    LinkedList_insert(top_pipe, pipes); 
+    SDL_Rect bottom_pipe = {WINDOW_WIDTH, r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
+
+    LinkedList_insert(top_pipe, pipes);
     LinkedList_insert(bottom_pipe, pipes);
 }
 
-void move_em_all_to_the_left(LinkedList* pipes) {
-    LinkedListNode* head = pipes->head;
+void move_em_all_to_the_left(LinkedList *pipes)
+{
+    LinkedListNode *head = pipes->head;
 
     // CASO DE ERRO
-    if (head == NULL) {
+    if (head == NULL)
+    {
         printf("[]\n");
         return;
     }
 
     printf("[");
-    while(head) {
+    while (head)
+    {
         printf("%i, ", head->data);
         head->data.x -= 10;
         head = head->next;
@@ -300,9 +453,9 @@ void move_em_all_to_the_left(LinkedList* pipes) {
     printf("\b\b]\n");
 }
 
-int check_collision(SDL_Rect bird, LinkedList* pipes)
+int check_collision(SDL_Rect bird, LinkedList *pipes)
 {
-    LinkedListNode* head = pipes->head;
+    LinkedListNode *head = pipes->head;
     SDL_Rect pipe;
 
     int leftA, leftB;
@@ -315,7 +468,8 @@ int check_collision(SDL_Rect bird, LinkedList* pipes)
     topA = bird.y;
     bottomA = bird.y + bird.h;
 
-    while(head) {
+    while (head)
+    {
         pipe = head->data;
 
         leftB = pipe.x;
@@ -323,10 +477,81 @@ int check_collision(SDL_Rect bird, LinkedList* pipes)
         topB = pipe.y;
         bottomB = pipe.y + pipe.h;
 
-        if(!(bottomA <= topB || topA >= bottomB || rightA <= leftB || leftA >= rightB))
+        if (!(bottomA <= topB || topA >= bottomB || rightA <= leftB || leftA >= rightB))
             return TRUE;
 
         head = head->next;
     }
     return FALSE;
+}
+
+int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State* current_state)
+{
+    SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(ren);
+
+    draw_city_and_grass(ren, sprites);
+
+    draw_pipes(ren, pipes, sprites);
+
+    SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawLine(ren, 0, critical_point_y, WINDOW_WIDTH, critical_point_y);
+
+    // DRAW BIRD
+    SDL_RenderCopy(ren, sprites, bird_frame, bird_rect);
+
+    update_score(score, pipes, bird_rect);
+
+    draw_score(ren, sprites, score);
+
+    *bird_hit_the_wall = check_collision(*bird_rect, pipes);
+    if (*bird_hit_the_wall)
+        *current_state = in_grave;
+}
+
+int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State *current_state, SDL_Rect *play_button_rect, SDL_Rect *logo_rect, SDL_Rect* logo_frame, SDL_Rect* play_button_frame)
+{
+
+    SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(ren);
+
+    draw_city_and_grass(ren, sprites);
+
+    SDL_RenderCopy(ren, sprites, logo_frame, logo_rect);
+    SDL_RenderCopy(ren, sprites, play_button_frame, play_button_rect);
+
+    return 0;
+}
+
+void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect)
+{
+    LinkedListNode *head = pipes->head;
+    int plus_one = FALSE;
+
+    // CASO DE ERRO
+    if (head == NULL)
+    {
+        printf("[]\n");
+        return;
+    }
+
+    printf("[");
+    while (head)
+    {
+        printf("%i, ", head->counted);
+
+        int bird_ahead_of_pipe = (bird_rect->x + bird_rect->w) >= (head->data.x + head->data.w);
+        if (!(head->counted) && bird_ahead_of_pipe)
+        {
+            head->counted = TRUE;
+            plus_one = TRUE;
+        }
+        head = head->next;
+    }
+    printf("\b\b]\n");
+
+    if (plus_one)
+    {
+        (*score)++;
+    }
 }
