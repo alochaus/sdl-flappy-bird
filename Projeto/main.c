@@ -373,25 +373,15 @@ void draw_city_and_grass(SDL_Renderer *ren, SDL_Texture *sprites)
     SDL_Rect city_frame = {52, 0, 144, 39};
     SDL_Rect leaves_rect = {0, (WINDOW_HEIGHT / 5) * 4, WINDOW_WIDTH, WINDOW_HEIGHT};
 
-    // SDL_Rect grass_frame = {52, 80, 144, 12};
-    // SDL_Rect grass_rect = {0, (WINDOW_HEIGHT / 5) * 4, (144 * (WINDOW_HEIGHT / 5)) / 12, (WINDOW_HEIGHT / 5)};
-    // SDL_Rect dirt_rect = {0, (WINDOW_HEIGHT / 8) * 7, WINDOW_WIDTH, WINDOW_HEIGHT};
-
     do
     {
         SDL_SetRenderDrawColor(ren, 0x17, 0xA1, 0x19, SDL_ALPHA_OPAQUE);
         SDL_RenderFillRect(ren, &leaves_rect);
 
-        // SDL_SetRenderDrawColor(ren, 0xDE, 0xD7, 0x98, SDL_ALPHA_OPAQUE);
-        // SDL_RenderFillRect(ren, &dirt_rect);
-
         SDL_RenderCopy(ren, sprites, &city_frame, &city_rect);
-        // SDL_RenderCopy(ren, sprites, &grass_frame, &grass_rect);
 
         city_rect.x += city_rect.w;
         leaves_rect.x += leaves_rect.w;
-        // grass_rect.x += grass_rect.w;
-        // dirt_rect.x += dirt_rect.w;
     } while (city_rect.x < WINDOW_WIDTH);
 }
 
