@@ -48,7 +48,7 @@ void draw_pipes(SDL_Renderer *ren, LinkedList *pipes, SDL_Texture *sprites);
 void draw_score(SDL_Renderer *ren, SDL_Texture *sprites, int *score, int middle);
 void generate_new_pipes(LinkedList *pipes);
 void move_em_all_to_the_left(LinkedList *pipes);
-void reset_game(LinkedList *pipes, SDL_Rect *bird_rect, int *bird_hit_the_wall, int *score, SDL_Rect *top_pipe, SDL_Rect *bottom_pipe, SDL_Rect *top_pipe_2, SDL_Rect *bottom_pipe_2);
+void reset_game(LinkedList *pipes, SDL_Rect *bird_rect, int *bird_hit_the_wall, int *gravity, int *score, int *critical_point, SDL_Rect *top_pipe, SDL_Rect *bottom_pipe, SDL_Rect *top_pipe_2, SDL_Rect *bottom_pipe_2);
 void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect);
 
 int main(void)
@@ -67,14 +67,14 @@ int main(void)
     SDL_Rect bird_frame = {0, 0, BIRD_WIDTH, BIRD_HEIGHT};
 
     int quit = FALSE;
-    int score = 98;
+    int score = 0;
     int bird_hit_the_wall = FALSE;
     int frametime = 0;
     int gravity = -GRAVITY;
     int critical_point_y = WINDOW_HEIGHT;
     int mouse_x, mouse_y;
     SDL_Point position;
-    State current_state = in_grave;
+    State current_state = in_menu;
     Uint32 wait = WAIT_STARTING_POINT;
 
     LinkedList *pipes = LinkedList_init();
@@ -108,8 +108,9 @@ int main(void)
     play_button_rect.x = (WINDOW_WIDTH / 2) - (play_button_rect.w / 2);
 
     int height = play_button_rect.h + play_button_rect.y;
+
     logo_rect.y += (WINDOW_HEIGHT / 2) - (height / 2);
-    play_button_rect.y = (WINDOW_HEIGHT / 2) - (height / 2) + play_button_rect.h;
+    play_button_rect.y = (WINDOW_HEIGHT / 2) - (height / 2) + logo_rect.h + 100;
 
     SDL_Rect game_over_frame = {52, 121, 96, 21};
     SDL_Rect menu_frame = {104, 92, 40, 14};
@@ -152,6 +153,9 @@ int main(void)
             }
             switch (event.type)
             {
+            case SDL_QUIT:
+                quit = TRUE;
+                break;
             case SDL_MOUSEBUTTONUP:
                 switch (current_state)
                 {
@@ -167,7 +171,7 @@ int main(void)
 
                         if(SDL_PointInRect(&position, &play_button_rect)) {
                             current_state = in_game;
-                            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
+                            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &gravity, &critical_point_y, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
                         }
                         break;
                     case in_grave:
@@ -179,7 +183,7 @@ int main(void)
                             current_state = in_menu;
                         } else if(SDL_PointInRect(&position, &retry_rect)) {
                             current_state = in_game;
-                            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
+                            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &gravity, &critical_point_y, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
                         }
                         break;
                 }
@@ -432,7 +436,7 @@ void generate_new_pipes(LinkedList *pipes)
     SDL_Rect top_pipe_frame = {0, 13, 26, 160};
     SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
 
-    srand(time(NULL));
+    srand(time(NULL) * SDL_GetTicks());
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
 
     SDL_Rect top_pipe = {WINDOW_WIDTH, r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
@@ -581,11 +585,13 @@ void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect)
     }
 }
 
-void reset_game(LinkedList* pipes, SDL_Rect* bird_rect, int* bird_hit_the_wall,int* score, SDL_Rect* top_pipe, SDL_Rect* bottom_pipe, SDL_Rect* top_pipe_2, SDL_Rect* bottom_pipe_2){
+void reset_game(LinkedList* pipes, SDL_Rect* bird_rect, int* bird_hit_the_wall, int* score, int *gravity, int *critical_point, SDL_Rect* top_pipe, SDL_Rect* bottom_pipe, SDL_Rect* top_pipe_2, SDL_Rect* bottom_pipe_2){
     *score = 0;
     *bird_hit_the_wall = 0;
+    *gravity = -GRAVITY;
     bird_rect->x = (WINDOW_WIDTH/8);
     bird_rect->y = (WINDOW_HEIGHT/2) - (bird_rect->h/2);
+    *critical_point = bird_rect->y;
 
     LinkedList_pop(pipes);
     LinkedList_pop(pipes);
