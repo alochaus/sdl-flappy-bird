@@ -11,17 +11,33 @@
 #define WINDOW_HEIGHT 720
 #define WINDOW_POS_X  SDL_WINDOWPOS_UNDEFINED
 #define WINDOW_POS_Y  SDL_WINDOWPOS_UNDEFINED
+#define WAIT_STARTING_POINT 300
+
+
+int AUX_WaitEventTimeoutCount(SDL_Event *event, Uint32 *wait)
+{
+    Uint32 before = SDL_GetTicks();
+    int isEvent = SDL_WaitEventTimeout(event, *wait);
+    if (isEvent)
+    {
+        (*wait) -= (SDL_GetTicks() - before);
+
+        if (*wait >= WAIT_STARTING_POINT)
+            *wait = 0;
+    }
+    else {
+        *wait = WAIT_STARTING_POINT;
+    }
+
+    return isEvent;
+}
 
 void check_colision(SDL_Rect** rects, SDL_Point* p1, SDL_Point* p2, int* time_speed, int* kb_speed, int* mouse_movement) {
     static int winner = -1;
-    static char winners_name[5] = {'\0'};
-    int x1 = p1->x;
-    int x2 = p2->x;
-    int y1 = p1->y;
-    int y2 = p2->y;
+    static char winners_name[6] = {'\0'};
     for (int i = 0; i < 3; i++)
     {
-        if(SDL_IntersectRectAndLine(rects[i], &(p1->x), &(p1->y), &(p2->x), &(p2->y))) {
+        if(rects[i]->w + rects[i]->x >= p1->x) {
             switch(i) {
                 case 0:
                     *time_speed = 0;
@@ -34,7 +50,7 @@ void check_colision(SDL_Rect** rects, SDL_Point* p1, SDL_Point* p2, int* time_sp
                     break;
             }
 
-            if (winner > 0) break;
+            if (winner >= 0) continue;
             winner = i;
             switch(winner) {
                 case 0:
@@ -50,10 +66,6 @@ void check_colision(SDL_Rect** rects, SDL_Point* p1, SDL_Point* p2, int* time_sp
             printf("%s wins!\n", winners_name);
         }
     }
-    p1->x = x1;
-    p2->x = x2;
-    p1->y = y1;
-    p2->y = y2;
 }
 
 void SDL_init(void);
@@ -109,11 +121,7 @@ void main(int argc, char** argv) {
         SDL_SetRenderDrawColor(ren, 0xFF, 0xFF, 0xFF, 0x00);
         SDL_RenderClear(ren);
 
-        Uint32 before = SDL_GetTicks();
-        is_event = SDL_WaitEventTimeout(&event, wait);
-        if(is_event) {
-            wait -= (SDL_GetTicks() - before);
-
+        if(AUX_WaitEventTimeoutCount(&event, &wait)) {
             switch (event.type)
             {
             case SDL_QUIT:
@@ -141,8 +149,6 @@ void main(int argc, char** argv) {
             }
         }
         else {
-            wait = 300;
-
             if((rect_time.y < 0) || (rect_time.y + rect_time.h > WINDOW_HEIGHT)) {
                 movement_speed_by_time *= -1;
                 rect_time.x += movement_speed_by_time;

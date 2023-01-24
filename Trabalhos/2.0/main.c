@@ -20,7 +20,7 @@ int AUX_WaitEventTimeoutCount(SDL_Event* event, Uint32* wait) {
     Uint32 before = SDL_GetTicks();
     int is_event = SDL_WaitEventTimeout(event, *wait);
     if (is_event) {
-        *wait -= (SDL_GetTicks() - before);
+        (*wait) -= (SDL_GetTicks() - before);
 
         if (*wait >= WAIT_STARTING_POINT) {
             *wait = 0;
