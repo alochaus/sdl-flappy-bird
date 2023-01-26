@@ -11,6 +11,94 @@
 #define WINDOW_POS_X  SDL_WINDOWPOS_UNDEFINED
 #define WINDOW_POS_Y  SDL_WINDOWPOS_UNDEFINED
 #define WAIT_STARTING_POINT 300
+#define mid_y (WINDOW_HEIGHT/2.0)
+#define sqr_size (WINDOW_HEIGHT/7.0)
+
+int mouse_x = 0;
+int mouse_y = 0;
+int new_mouse_x = 0;
+int new_mouse_y = 0;
+int original_state_x = 0;
+int original_state_y = 0;
+int movement_speed_by_keyboard = 20;
+SDL_Rect rect_keyboard = {
+    WINDOW_WIDTH/2 - (sqr_size/2),
+    mid_y - (sqr_size / 2),
+    sqr_size,
+    sqr_size
+};
+
+typedef enum {estado_padrao, estado_clicado, estado_arrastado, estado_cancelado} estado; 
+
+void maquina_de_estados(estado* estado_atual, SDL_Event* event) {
+    switch(*estado_atual) {
+        case estado_padrao: padrao(estado_atual, event); break;
+        case estado_clicado: clicado(estado_atual, event); break;
+        case estado_arrastado: arrastado(estado_atual, event); break;
+        case estado_cancelado: cancelado(estado_atual); break;
+    }
+}
+
+void padrao(estado* estado_atual, SDL_Event* event) {
+    switch (event->type)
+    {
+    case SDL_MOUSEBUTTONDOWN:
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+        original_state_x = rect_keyboard.x;
+        original_state_y = rect_keyboard.y;
+
+        int cursor_inside_rect = mouse_x >= rect_keyboard.x && 
+                                 mouse_y >= rect_keyboard.y &&
+                                 mouse_x <= rect_keyboard.x + rect_keyboard.w &&
+                                 mouse_y <= rect_keyboard.y + rect_keyboard.h;
+        
+        if(cursor_inside_rect)
+            *estado_atual = estado_clicado;
+        break;
+    }
+}
+
+void clicado(estado* estado_atual, SDL_Event* event) {
+    switch (event->type)
+    {
+        case SDL_MOUSEBUTTONUP:
+            printf("Clicado\n");
+            *estado_atual = estado_padrao;
+            break;
+
+        case SDL_MOUSEMOTION:
+            *estado_atual = estado_arrastado;
+            break;
+    }
+}
+
+void arrastado(estado* estado_atual, SDL_Event* event) {
+    SDL_GetMouseState(&new_mouse_x, &new_mouse_y);
+
+    int dx = new_mouse_x - mouse_x;
+    int dy = new_mouse_y - mouse_y;
+
+    rect_keyboard.x+=dx;
+    rect_keyboard.y+=dy;
+
+    mouse_x = new_mouse_x;
+    mouse_y = new_mouse_y;
+
+    if(event->type == SDL_MOUSEBUTTONUP) {
+        printf("Arrastado\n");
+        *estado_atual = estado_padrao;
+    }
+    else if(event->key.keysym.sym == SDLK_ESCAPE) {
+        printf("Cancelado\n");
+        *estado_atual = estado_cancelado;
+    }
+}
+
+void cancelado(estado* estado_atual) {
+    rect_keyboard.x = original_state_x;
+    rect_keyboard.y = original_state_y;
+    *estado_atual = estado_padrao;
+}
 
 void SDL_init(void);
 SDL_Window* create_window(void);
@@ -32,6 +120,7 @@ int AUX_WaitEventTimeoutCount(SDL_Event* event, Uint32* wait) {
     return is_event;
 }
 
+
 void main(int argc, char** argv) {
     SDL_init();
 
@@ -40,81 +129,17 @@ void main(int argc, char** argv) {
 
     SDL_Event event;
     uint quit = FALSE;
+    estado estado_atual = estado_padrao;
 
-    double mid_y = WINDOW_HEIGHT / 2.0;
-    double sqr_size = WINDOW_WIDTH / 7.0;
 
-    SDL_Rect rect_keyboard = {
-        WINDOW_WIDTH/2 - (sqr_size/2),
-        mid_y - (sqr_size / 2),
-        sqr_size,
-        sqr_size
-    };
-
-    int mouse_x = 0;
-    int mouse_y = 0;
-    int new_mouse_x = 0;
-    int new_mouse_y = 0;
-    int original_state_x = 0;
-    int original_state_y = 0;
-    int movement_speed_by_time = 40;
-    int movement_speed_by_keyboard = 20;
-    int mouse_button_down = FALSE;
-    int cursor_inside_rect = FALSE;
     Uint32 wait = WAIT_STARTING_POINT;
 
     while(!quit){
         if(AUX_WaitEventTimeoutCount(&event, &wait)) {
-            switch (event.type)
-            {
-            case SDL_MOUSEBUTTONDOWN:
-                mouse_button_down=TRUE;
-                SDL_GetMouseState(&mouse_x, &mouse_y);
-                original_state_x = rect_keyboard.x;
-                original_state_y = rect_keyboard.y;
-
-                cursor_inside_rect = mouse_x >= rect_keyboard.x && 
-                                     mouse_y >= rect_keyboard.y &&
-                                     mouse_x <= rect_keyboard.x + rect_keyboard.w &&
-                                     mouse_y <= rect_keyboard.y + rect_keyboard.h;
-                break;
-
-            case SDL_MOUSEBUTTONUP:
-                mouse_button_down=FALSE;
-                cursor_inside_rect=FALSE;
-                break;
-
-            case SDL_MOUSEMOTION:
-                if(!mouse_button_down) break;
-
-                SDL_GetMouseState(&new_mouse_x, &new_mouse_y);
-                int same_position = new_mouse_x == mouse_x && new_mouse_y == mouse_y;
-
-                if(!cursor_inside_rect || same_position) break;
-
-                int dx = new_mouse_x - mouse_x;
-                int dy = new_mouse_y - mouse_y;
-
-                rect_keyboard.x+=dx;
-                rect_keyboard.y+=dy;
-
-                mouse_x = new_mouse_x;
-                mouse_y = new_mouse_y;
-                break;
-
-            case SDL_QUIT:
+            if(event.type == SDL_QUIT)
                 quit=TRUE;
-                break;
-            }
-
-            switch (event.key.keysym.sym) {
-            case SDLK_ESCAPE:
-                cursor_inside_rect = FALSE;
-                mouse_button_down = FALSE;
-                rect_keyboard.x = original_state_x;
-                rect_keyboard.y = original_state_y;
-                break;
-            }
+            else
+                maquina_de_estados(&estado_atual, &event);
         } else {
             wait = WAIT_STARTING_POINT;
         }
