@@ -1,7 +1,7 @@
 #include<stdio.h>
 #include<SDL2/SDL.h>
 
-typedef struct {
+typedef struct LinkedListNode {
     SDL_Rect data;
     int counted;
 
@@ -90,7 +90,7 @@ LinkedListNode* LinkedList_search(LinkedList* ll, int index) {
     // CASO DE ERRO
     if (head == NULL) {
         printf("[]\n");
-        return;
+        return NULL;
     }
 
     for(int i=0; i<index; i++) {
@@ -116,7 +116,7 @@ void print(LinkedList* le) {
 
     printf("[");
     while(cabeca) {
-        printf("%i, ", cabeca->data);
+        printf("{%i, %i}, ", cabeca->data.x, cabeca->data.y);
         cabeca = cabeca->next;
     }
     printf("\b\b]\n");

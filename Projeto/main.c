@@ -78,8 +78,6 @@ int main(void)
     Uint32 wait = WAIT_STARTING_POINT;
 
     LinkedList *pipes = LinkedList_init();
-    SDL_Rect top_pipe_frame = {0, 13, 26, 160};
-    SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
 
     srand(time(NULL));
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
@@ -423,9 +421,6 @@ void generate_new_pipes(LinkedList *pipes)
     LinkedList_pop(pipes);
 
     // GERAR PIPES
-    SDL_Rect top_pipe_frame = {0, 13, 26, 160};
-    SDL_Rect bottom_pipe_frame = {26, 13, 26, 160};
-
     srand(time(NULL) * SDL_GetTicks());
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
 
@@ -451,7 +446,7 @@ void move_em_all_to_the_left(LinkedList *pipes)
     printf("[");
     while (head)
     {
-        printf("%i, ", head->data);
+        printf("{%i, %i}, ", head->data.x, head->data.y);
         head->data.x -= 10;
         head = head->next;
     }
@@ -500,7 +495,7 @@ int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *c
     draw_pipes(ren, pipes, sprites);
 
     SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawLine(ren, 0, critical_point_y, WINDOW_WIDTH, critical_point_y);
+    SDL_RenderDrawLine(ren, 0, *critical_point_y, WINDOW_WIDTH, *critical_point_y);
 
     // DRAW BIRD
     SDL_RenderCopy(ren, sprites, bird_frame, bird_rect);
