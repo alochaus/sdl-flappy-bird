@@ -51,6 +51,13 @@ void move_em_all_to_the_left(LinkedList *pipes);
 void reset_game(LinkedList *pipes, SDL_Rect *bird_rect, int *bird_hit_the_wall, int *gravity, int *score, int *critical_point, SDL_Rect *top_pipe, SDL_Rect *bottom_pipe, SDL_Rect *top_pipe_2, SDL_Rect *bottom_pipe_2);
 void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect);
 
+//https://github.com/libsdl-org/SDL/blob/98986f39e97727a80f733f7809ceb80a13697269/include/SDL_rect.h
+// SDL_FORCE_INLINE SDL_bool SDL_PointInRect(const SDL_Point *p, const SDL_Rect *r)
+// {
+//     return ( (p->x >= r->x) && (p->x < (r->x + r->w)) &&
+//              (p->y >= r->y) && (p->y < (r->y + r->h)) ) ? SDL_TRUE : SDL_FALSE;
+// }
+
 int main(void)
 {
     SDL_init();
