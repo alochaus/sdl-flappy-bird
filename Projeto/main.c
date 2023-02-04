@@ -31,17 +31,16 @@
 #define SKY_COLOR "138792"
 
 
-typedef enum {in_menu, in_game, in_grave} State; 
-int sprites_width, sprites_height;
+typedef enum {MENU_INICIAL, CAINDO, BATENDO_ASAS, FIM_DE_JOGO} Estado; 
 
 SDL_Renderer *create_renderer(SDL_Window *win);
 SDL_Texture *load_texture(char *image_path, SDL_Renderer *ren);
 SDL_Window *create_window(void);
 int AUX_WaitEventTimeoutCount(SDL_Event *event, Uint32 *wait, int frametime);
 int check_collision(SDL_Rect bird, LinkedList *pipes);
-int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State* current_state);
-int draw_game_over_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State *current_state, SDL_Rect *menu_rect, SDL_Rect *retry_rect, SDL_Rect *retry_frame, SDL_Rect *menu_frame, SDL_Rect *game_over_rect, SDL_Rect *game_over_frame);
-int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State *current_state, SDL_Rect *play_button_rect, SDL_Rect *logo_rect, SDL_Rect* logo_frame, SDL_Rect* play_button_frame);
+int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, Estado* current_state);
+int draw_game_over_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, Estado *current_state, SDL_Rect *menu_rect, SDL_Rect *retry_rect, SDL_Rect *retry_frame, SDL_Rect *menu_frame, SDL_Rect *game_over_rect, SDL_Rect *game_over_frame);
+int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, Estado *current_state, SDL_Rect *play_button_rect, SDL_Rect *logo_rect, SDL_Rect* logo_frame, SDL_Rect* play_button_frame);
 void SDL_init(void);
 void draw_city_and_grass(SDL_Renderer *ren, SDL_Texture *sprites);
 void draw_pipes(SDL_Renderer *ren, LinkedList *pipes, SDL_Texture *sprites);
@@ -50,6 +49,13 @@ void generate_new_pipes(LinkedList *pipes);
 void move_em_all_to_the_left(LinkedList *pipes);
 void reset_game(LinkedList *pipes, SDL_Rect *bird_rect, int *bird_hit_the_wall, int *gravity, int *score, int *critical_point, SDL_Rect *top_pipe, SDL_Rect *bottom_pipe, SDL_Rect *top_pipe_2, SDL_Rect *bottom_pipe_2);
 void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect);
+void input_handler(Estado* estado, SDL_Event* event);
+void time_related_tasks(Estado* estado, SDL_Event* event);
+void renderer(Estado* estado, SDL_Event* event);
+void menu_inicial(Estado* estado, SDL_Event* event);
+void caindo(Estado* estado, SDL_Event* event);
+void batendo_asas(Estado* estado, SDL_Event* event);
+void fim_de_jogo(Estado* estado, SDL_Event* event);
 
 //https://github.com/libsdl-org/SDL/blob/98986f39e97727a80f733f7809ceb80a13697269/include/SDL_rect.h
 // SDL_FORCE_INLINE SDL_bool SDL_PointInRect(const SDL_Point *p, const SDL_Rect *r)
@@ -58,55 +64,168 @@ void update_score(int *score, LinkedList *pipes, SDL_Rect *bird_rect);
 //              (p->y >= r->y) && (p->y < (r->y + r->h)) ) ? SDL_TRUE : SDL_FALSE;
 // }
 
+int bird_hit_the_wall = FALSE;
+int critical_point_y = WINDOW_HEIGHT;
+int gravity = -GRAVITY;
+int frametime = 0;
+int score = 0;
+int quit = FALSE;
+int sprites_width, sprites_height;
+int mouse_x, mouse_y;
+SDL_Rect bird_rect = {WINDOW_WIDTH / 5 - 85, 0, 85, 60};
+SDL_Rect bird_frame = {0, 0, BIRD_WIDTH, BIRD_HEIGHT};
+SDL_Rect top_pipe, bottom_pipe, top_pipe_2, bottom_pipe_2;
+SDL_Rect logo_rect;
+SDL_Rect logo_frame = {52, 57, 89, 23};
+SDL_Rect play_button_rect;
+SDL_Rect play_button_frame = {52, 92, 52, 29};
+SDL_Rect game_over_rect;
+SDL_Rect game_over_frame = {52, 121, 96, 21};
+SDL_Rect menu_rect;
+SDL_Rect menu_frame = {104, 92, 40, 14};
+SDL_Rect retry_rect;
+SDL_Rect retry_frame = {104, 106, 40, 14};
+SDL_Point position;
+SDL_Window *win;
+SDL_Renderer *ren;
+SDL_Texture *sprites;
+LinkedList* pipes;
+
+
+// Máquina de Estados
+void input_handler(Estado* estado, SDL_Event* event) {
+    if(event->type == SDL_QUIT) {
+        quit = TRUE;
+        return;
+    }
+    switch(*estado) {
+        case MENU_INICIAL: menu_inicial(estado, event); break;
+        case CAINDO: caindo(estado, event); break;
+        case BATENDO_ASAS: batendo_asas(estado, event); break;
+        case FIM_DE_JOGO: fim_de_jogo(estado, event); break;
+    }
+}
+
+void menu_inicial(Estado* estado, SDL_Event* event) {
+    if(event->type == SDL_MOUSEBUTTONUP) {
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+        position.x = mouse_x;
+        position.y = mouse_y;
+
+        if(SDL_PointInRect(&position, &play_button_rect)) {
+            *estado = CAINDO;
+            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &gravity, &critical_point_y, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
+        }
+    }
+}
+
+void caindo(Estado* estado, SDL_Event* event) {
+    // GARANTIR GRAVIDADE POSITIVA
+    if (gravity < 0) {
+        gravity = GRAVITY;
+    }
+
+    // DEFINIÇÃO DE PONTO MÁXIMO E
+    // TRANSIÇÃO PARA "BATENDO ASAS"
+    if(event->type == SDL_MOUSEBUTTONUP) {
+        *estado = BATENDO_ASAS;
+        gravity = -GRAVITY;
+        critical_point_y = bird_rect.y - 70;
+    }
+}
+
+void batendo_asas(Estado* estado, SDL_Event* event) {
+    // GARANTIR GRAVIDADE NEGATIVA
+    if (gravity > 0) {
+        gravity = -GRAVITY;
+    }
+
+    // SE COLIDIR COM UM CANO, DEVE TRANSICIONAR
+    // PARA O ESTADO "FIM_DE_JOGO".
+    bird_hit_the_wall = check_collision(bird_rect, pipes);
+    if (bird_hit_the_wall) {
+        *estado = FIM_DE_JOGO;
+    }
+
+    // DEFINIR PONTO MÁXIMO
+    else if(event->type == SDL_MOUSEBUTTONUP) {
+        *estado = BATENDO_ASAS;
+        gravity = -GRAVITY;
+        critical_point_y = bird_rect.y - 70;
+    }
+
+    // SE O PÁSSARO PASSAR DA LINHA,
+    // ELE DEVE TRANSICIONAR PARA O
+    // ESTADO "CAINDO".
+    if (critical_point_y >= bird_rect.y) {
+        *estado = CAINDO;
+    }
+}
+
+void fim_de_jogo(Estado* estado, SDL_Event* event) {
+    if(event->type == SDL_MOUSEBUTTONUP) {
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+        position.x = mouse_x;
+        position.y = mouse_y;
+
+        if(SDL_PointInRect(&position, &menu_rect)) {
+            *estado = MENU_INICIAL;
+        } else if(SDL_PointInRect(&position, &retry_rect)) {
+            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &gravity, &critical_point_y, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
+            *estado = CAINDO;
+        }
+    }
+}
+
 int main(void)
 {
     SDL_init();
-
-    SDL_Window *win = create_window();
-    SDL_Renderer *ren = create_renderer(win);
     SDL_Event event;
 
-    SDL_Texture *sprites = load_texture("assets/textures.png", ren);
+    win = create_window();
+    ren = create_renderer(win);
+
+    sprites = load_texture("assets/textures.png", ren);
 
     SDL_QueryTexture(sprites, NULL, NULL, &sprites_width, &sprites_height);
 
-    SDL_Rect bird_rect = {WINDOW_WIDTH / 5 - 85, 0, 85, 60};
-    SDL_Rect bird_frame = {0, 0, BIRD_WIDTH, BIRD_HEIGHT};
-
-    int quit = FALSE;
-    int score = 0;
-    int bird_hit_the_wall = FALSE;
-    int frametime = 0;
-    int gravity = -GRAVITY;
-    int critical_point_y = WINDOW_HEIGHT;
-    int mouse_x, mouse_y;
-    SDL_Point position;
-    State current_state = in_menu;
+    Estado estado = MENU_INICIAL;
     Uint32 wait = WAIT_STARTING_POINT;
 
-    LinkedList *pipes = LinkedList_init();
+    pipes = LinkedList_init();
 
     srand(time(NULL));
     int r = rand() % (WINDOW_HEIGHT - PIPE_GAP - 50);
 
-    SDL_Rect top_pipe = {WINDOW_WIDTH, r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
-    SDL_Rect bottom_pipe = {WINDOW_WIDTH, r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
-    SDL_Rect top_pipe_2 = {WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13), r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)), PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
-    SDL_Rect bottom_pipe_2 = {WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13), r + PIPE_GAP, PIPE_SIZE * 26, PIPE_SIZE * (sprites_height - BIRD_HEIGHT)};
+    top_pipe.x = WINDOW_WIDTH;
+    top_pipe.y = r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)); 
+    top_pipe.w = PIPE_SIZE * 26; 
+    top_pipe.h = PIPE_SIZE * (sprites_height - BIRD_HEIGHT);
 
-    SDL_Rect logo_frame = {52, 57, 89, 23};
+    bottom_pipe.x = WINDOW_WIDTH; 
+    bottom_pipe.y = r + PIPE_GAP; 
+    bottom_pipe.w = PIPE_SIZE * 26; 
+    bottom_pipe.h = PIPE_SIZE * (sprites_height - BIRD_HEIGHT);
+
+    top_pipe_2.x = WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13); 
+    top_pipe_2.y = r - PIPE_GAP - (PIPE_SIZE * (sprites_height - BIRD_HEIGHT)); 
+    top_pipe_2.w = PIPE_SIZE * 26; 
+    top_pipe_2.h = PIPE_SIZE * (sprites_height - BIRD_HEIGHT);
+
+    bottom_pipe_2.x = WINDOW_WIDTH + (WINDOW_WIDTH / 2) + (PIPE_SIZE * 13); 
+    bottom_pipe_2.y = r + PIPE_GAP;
+    bottom_pipe_2.w = PIPE_SIZE * 26; 
+    bottom_pipe_2.h = PIPE_SIZE * (sprites_height - BIRD_HEIGHT);
+
     int logo_frame_mul = 4;
 
-    SDL_Rect logo_rect;
     logo_rect.w = logo_frame.w * logo_frame_mul;
     logo_rect.h = logo_frame.h * logo_frame_mul;
     logo_rect.x = (WINDOW_WIDTH / 2) - (logo_rect.w / 2);
     logo_rect.y = 0;
 
-    SDL_Rect play_button_frame = {52, 92, 52, 29};
     int play_button_frame_mul = 2;
     
-    SDL_Rect play_button_rect;
     play_button_rect.w = play_button_frame.w * play_button_frame_mul;
     play_button_rect.h = play_button_frame.h * play_button_frame_mul;
     play_button_rect.y = logo_rect.h + 100;
@@ -117,24 +236,17 @@ int main(void)
     logo_rect.y += (WINDOW_HEIGHT / 2) - (height / 2);
     play_button_rect.y = (WINDOW_HEIGHT / 2) - (height / 2) + logo_rect.h + 100;
 
-    SDL_Rect game_over_frame = {52, 121, 96, 21};
-    SDL_Rect menu_frame = {104, 92, 40, 14};
-    SDL_Rect retry_frame = {104, 106, 40, 14};
-
-    SDL_Rect game_over_rect;
     game_over_rect.w = game_over_frame.w * 5;
     game_over_rect.h = game_over_frame.h * 5;
     game_over_rect.x = WINDOW_WIDTH/2 - (game_over_frame.w*5/2);
     // game_over_rect.y = 0;
     game_over_rect.y = WINDOW_HEIGHT/2 - game_over_frame.y - 100;
 
-    SDL_Rect menu_rect;
     menu_rect.w = menu_frame.w * 5;
     menu_rect.h = menu_frame.h * 5;
     menu_rect.x = WINDOW_WIDTH/2 - (menu_frame.x*2);
     menu_rect.y = WINDOW_HEIGHT/2 - menu_frame.h + 100;
 
-    SDL_Rect retry_rect;
     retry_rect.w = retry_frame.w * 5;
     retry_rect.h = retry_frame.h * 5;
     retry_rect.x = WINDOW_WIDTH/2 + 15;
@@ -150,92 +262,15 @@ int main(void)
     {
         if (AUX_WaitEventTimeoutCount(&event, &wait, frametime))
         {
-            switch (event.key.keysym.sym)
-            {
-            case SDLK_ESCAPE:
-                quit = TRUE;
-                break;
-            }
-            switch (event.type)
-            {
-            case SDL_QUIT:
-                quit = TRUE;
-                break;
-            case SDL_MOUSEBUTTONUP:
-                switch (current_state)
-                {
-                    case in_game:
-                        if (gravity > 0)
-                            gravity *= -1;
-                        critical_point_y = bird_rect.y - 70;
-                        break;
-                    case in_menu:
-                        SDL_GetMouseState(&mouse_x, &mouse_y);
-                        position.x = mouse_x;
-                        position.y = mouse_y;
-
-                        if(SDL_PointInRect(&position, &play_button_rect)) {
-                            current_state = in_game;
-                            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &gravity, &critical_point_y, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
-                        }
-                        break;
-                    case in_grave:
-                        current_state = in_game;
-                        SDL_GetMouseState(&mouse_x, &mouse_y);
-                        position.x = mouse_x;
-                        position.y = mouse_y;
-                        if(SDL_PointInRect(&position, &menu_rect)) {
-                            current_state = in_menu;
-                        } else if(SDL_PointInRect(&position, &retry_rect)) {
-                            current_state = in_game;
-                            reset_game(pipes, &bird_rect, &bird_hit_the_wall, &score, &gravity, &critical_point_y, &top_pipe, &bottom_pipe, &top_pipe_2, &bottom_pipe_2);
-                        }
-                        break;
-                }
-                break;
-            }
+            input_handler(&estado, &event);
         }
         else
         {
-            wait = WAIT_STARTING_POINT;
-            switch(current_state) {
-            case in_game:
-                move_em_all_to_the_left(pipes);
-                generate_new_pipes(pipes);
-
-                frametime++;
-                if (frametime == 5)
-                {
-                    frametime = 0;
-                    bird_frame.x += BIRD_WIDTH;
-                    if (bird_frame.x >= BIRD_ENDING_POINT)
-                        bird_frame.x = BIRD_STARTING_POINT;
-                }
-
-                if (critical_point_y >= bird_rect.y)
-                {
-                    gravity *= -1;
-                    critical_point_y = -100;
-                }
-
-                bird_rect.y += gravity;
-            }
-
+            time_related_tasks(&estado, &event);
         }
 
-        printf("current_state: %d\n", current_state);
-        switch(current_state) {
-            case in_menu:
-                draw_menu(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, &current_state, &play_button_rect, &logo_rect, &logo_frame, &play_button_frame);
-                break;
-            case in_game:
-                draw_game(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, &current_state);
-                break;
-            case in_grave:
-                draw_game_over_menu(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, &current_state, &menu_rect, &retry_rect, &retry_frame, &menu_frame, &game_over_rect, &game_over_frame);
-                break;
-        }
-
+        printf("current_state: %d\n", estado);
+        renderer(&estado, &event);
         SDL_RenderPresent(ren);
     }
 
@@ -492,7 +527,7 @@ int check_collision(SDL_Rect bird, LinkedList *pipes)
     return FALSE;
 }
 
-int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State* current_state)
+int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, Estado* current_state)
 {
     SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(ren);
@@ -510,13 +545,9 @@ int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *c
     update_score(score, pipes, bird_rect);
 
     draw_score(ren, sprites, score, FALSE);
-
-    *bird_hit_the_wall = check_collision(*bird_rect, pipes);
-    if (*bird_hit_the_wall)
-        *current_state = in_grave;
 }
 
-int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State *current_state, SDL_Rect *play_button_rect, SDL_Rect *logo_rect, SDL_Rect* logo_frame, SDL_Rect* play_button_frame)
+int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, Estado *current_state, SDL_Rect *play_button_rect, SDL_Rect *logo_rect, SDL_Rect* logo_frame, SDL_Rect* play_button_frame)
 {
     SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(ren);
@@ -529,7 +560,7 @@ int draw_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *c
     return 0;
 }
 
-int draw_game_over_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, State *current_state, SDL_Rect *menu_rect, SDL_Rect *retry_rect, SDL_Rect *retry_frame, SDL_Rect *menu_frame, SDL_Rect *game_over_rect, SDL_Rect *game_over_frame)
+int draw_game_over_menu(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *critical_point_y, SDL_Rect *bird_frame, SDL_Rect *bird_rect, int *score, int *bird_hit_the_wall, Estado *current_state, SDL_Rect *menu_rect, SDL_Rect *retry_rect, SDL_Rect *retry_frame, SDL_Rect *menu_frame, SDL_Rect *game_over_rect, SDL_Rect *game_over_frame)
 {
     SDL_SetRenderDrawColor(ren, 0x13, 0x87, 0x92, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(ren);
@@ -593,4 +624,55 @@ void reset_game(LinkedList* pipes, SDL_Rect* bird_rect, int* bird_hit_the_wall, 
     LinkedList_insert(*bottom_pipe, pipes);
     LinkedList_insert(*top_pipe_2, pipes);
     LinkedList_insert(*bottom_pipe_2, pipes);
+}
+
+void time_related_tasks(Estado* estado, SDL_Event* event) {
+    switch(*estado) {
+        case CAINDO:
+        case BATENDO_ASAS:
+            move_em_all_to_the_left(pipes);
+            generate_new_pipes(pipes);
+
+            frametime++;
+            if (frametime == 5)
+            {
+                frametime = 0;
+                bird_frame.x += BIRD_WIDTH;
+                if (bird_frame.x >= BIRD_ENDING_POINT)
+                    bird_frame.x = BIRD_STARTING_POINT;
+            }
+            
+            // Gravidade
+            if (critical_point_y >= bird_rect.y)
+            {
+                *estado = CAINDO;
+                gravity = GRAVITY;
+                critical_point_y = -100;
+            }
+            bird_rect.y += gravity;
+
+            // SE COLIDIR COM UM CANO, DEVE TRANSICIONAR
+            // PARA O ESTADO "FIM_DE_JOGO".
+            bird_hit_the_wall = check_collision(bird_rect, pipes);
+            if (bird_hit_the_wall) {
+                *estado = FIM_DE_JOGO;
+            }
+
+            break;
+    }
+}
+
+void renderer(Estado* estado, SDL_Event* event) {
+    switch(*estado) {
+        case MENU_INICIAL:
+            draw_menu(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, estado, &play_button_rect, &logo_rect, &logo_frame, &play_button_frame);
+            break;
+        case CAINDO:
+        case BATENDO_ASAS:
+            draw_game(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, estado);
+            break;
+        case FIM_DE_JOGO:
+            draw_game_over_menu(ren, sprites, pipes, &critical_point_y, &bird_frame, &bird_rect, &score, &bird_hit_the_wall, estado, &menu_rect, &retry_rect, &retry_frame, &menu_frame, &game_over_rect, &game_over_frame);
+            break;
+    }
 }
