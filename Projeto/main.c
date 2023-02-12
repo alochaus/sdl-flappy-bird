@@ -539,7 +539,9 @@ int draw_game(SDL_Renderer *ren, SDL_Texture *sprites, LinkedList *pipes, int *c
     draw_pipes(ren, pipes, sprites);
 
     SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+    #ifdef DEBUG
     SDL_RenderDrawLine(ren, 0, *critical_point_y, WINDOW_WIDTH, *critical_point_y);
+    #endif
 
     // DRAW BIRD
     SDL_RenderCopy(ren, sprites, bird_frame, bird_rect);
