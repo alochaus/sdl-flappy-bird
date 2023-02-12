@@ -57,12 +57,14 @@ void caindo(Estado* estado, SDL_Event* event);
 void batendo_asas(Estado* estado, SDL_Event* event);
 void fim_de_jogo(Estado* estado, SDL_Event* event);
 
+#ifdef SDL_POINTINRECT_NOT_IMPLEMENTED
 //https://github.com/libsdl-org/SDL/blob/98986f39e97727a80f733f7809ceb80a13697269/include/SDL_rect.h
-// SDL_FORCE_INLINE SDL_bool SDL_PointInRect(const SDL_Point *p, const SDL_Rect *r)
-// {
-//     return ( (p->x >= r->x) && (p->x < (r->x + r->w)) &&
-//              (p->y >= r->y) && (p->y < (r->y + r->h)) ) ? SDL_TRUE : SDL_FALSE;
-// }
+SDL_FORCE_INLINE SDL_bool SDL_PointInRect(const SDL_Point *p, const SDL_Rect *r)
+{
+    return ( (p->x >= r->x) && (p->x < (r->x + r->w)) &&
+             (p->y >= r->y) && (p->y < (r->y + r->h)) ) ? SDL_TRUE : SDL_FALSE;
+}
+#endif
 
 int bird_hit_the_wall = FALSE;
 int critical_point_y = WINDOW_HEIGHT;

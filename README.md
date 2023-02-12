@@ -26,8 +26,9 @@ sudo dnf install SDL2-devel SDL2_image-devel
 
 ```bash
 cd Projeto
-gcc main.c -lSDL2 -lSDL2_image -lm && ./a.out > a.txt
+gcc main.c -lSDL2 -lSDL2_image && ./a.out > a.txt
 ```
+_Nota_: se sua versão do SDL2 por algum motivo não tiver o `SDL_PointInRect` implementado, compile o programa com a parâmetro `-D SDL_POINTINRECT_NOT_IMPLEMENTED`.
 
 
 ### Máquina de Estados:
